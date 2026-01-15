@@ -25,32 +25,50 @@ void setup() {
   pinMode(LED_PIN, OUTPUT);
 
   Serial.begin(115200);
-  
+
   FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, NUM_LEDS);
-  FastLED.setBrightness(25);
+  FastLED.setBrightness(LED_BRIGHTNESS_DAY);
 
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   while (WiFi.status() != WL_CONNECTED) {
-    delay(300);
+    delay(500);
   }
   Serial.println("\nWiFi connected");
 
-  // Getting time via NTP and initate sleep if current time is sleeptime
-  if (syncTimeOrFail()) {
+
+  bool timeOk = false;
+
+  // Trying to get time via NTP
+  // Multiple attempts --> if error continues deepsleep
+  for (int attempt = 1; attempt <= NTP_MAX_RETRIES; ++attempt) {
+    Serial.printf("NTP sync attempt %d/%d...\n", attempt, NTP_MAX_RETRIES);
+
+    if (getTimeOrFail()) {
+      timeOk = true;
+      break;
+    }
+
+    if (attempt < NTP_MAX_RETRIES) {
+      Serial.println("NTP failed, retrying...");
+      delay(NTP_RETRY_DELAY_SECONDS * 1000);
+    }
+  }
+
+  if (timeOk) {
     checkforEnteringNightSleep(ledsOff);
   } else {
-    Serial.println("Error while NTP connect ... sleeping 30 minutes.");
-    ESP.deepSleep(30 * 60 * 1000000ULL);
+    Serial.println("NTP failed after retries – sleeping fallback.");
+    ESP.deepSleep((uint64_t)NTP_FAIL_SLEEP_SECONDS * 1000000ULL);
   }
 }
 
 
 /* Program loop */
 void loop() {
-  boolean resultRecieved = false;
+  // Directly checking, if starting loop is in sleep time
+  checkforEnteringNightSleep(ledsOff);
+
   HTTPClient http;
-  CRGB choosenColor = CRGB::Green;
-  
   String requestURL;
   requestURL = String(BASE_URL);
   requestURL += "/data/metar?format=json&ids=";
@@ -65,7 +83,7 @@ void loop() {
 
   if (code == 200) {
     String body = http.getString();
-    Serial.println(body);
+    //Serial.println(body);
 
     if (parseMetars(body, resolvedMetars)) {
       // Copying resolved metars into map with ICAO-Code as key and metar-index as value
@@ -81,13 +99,13 @@ void loop() {
     }
   } else {
     Serial.println("Error - trying again soon ...");
+    delay(1000);          // Avoid accidentally DOS'ing aviationweather.gov
     return;
   }
 
 
   int windCyclesRemaining = 1;
-  bool windCycle = false;
-
+  bool isWindCycle = false;
 
   if (SHOW_WIND_ANIMATION)
     windCyclesRemaining = UPDATE_INTERVAL / WIND_BLINK_SPEED;
@@ -111,13 +129,13 @@ void loop() {
 
       // Load resolved metar from index (iterator) of resolvedMetars
       const Metar& metar = resolvedMetars[iterator -> second];
-      leds[currentLoopIndex] = getLedColorByMetarAndWindCycle(metar, windCycle);
-      
+      leds[currentLoopIndex] = getLedColorByMetarAndWindCycle(metar, isWindCycle);
+
       currentLoopIndex += 1;
     }
     FastLED.show();
     windCyclesRemaining -= 1;
-    windCycle = !windCycle;
+    isWindCycle = !isWindCycle;
 
     delay(WIND_BLINK_SPEED * 1000);
 

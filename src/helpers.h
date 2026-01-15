@@ -14,6 +14,6 @@ String calcFlightCategory(float visibility, int ceiling);
 float parseVisibility(JsonVariant floatString);
 
 CRGB getLedColorByMetarAndWindCycle(Metar metar, bool windCycle);
-CRGB resolveColor(String flightCategory, bool windCycle, bool windy, bool highWinds, bool lightningConditions);
+CRGB resolveColor(String flightCategory, bool windy, bool highWinds, bool lightningConditions);
 CRGB baseColorForCat(String cat);
 CRGB fadeColorForCat(String cat);

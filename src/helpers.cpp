@@ -107,18 +107,18 @@ CRGB getLedColorByMetarAndWindCycle(Metar metar, bool windCycle) {
   Serial.printf("%s: cat=%s wind=%d gust=%dkt | windy=%d highwinds=%d lightning=%d\n",
     metar.icao.c_str(), metar.fltCat.c_str(), metar.wspd, metar.wgst, windy, highWinds, lightning);
     
-  return resolveColor(metar.fltCat, windCycle, windy, highWinds, lightning);
+  return resolveColor(metar.fltCat, windy, highWinds, lightning);
 }
 
 
 CRGB resolveColor(String flightCategory, 
-                  bool windCycle, 
                   bool windy, 
                   bool highWinds, 
                   bool lightningConditions) {
   if (lightningConditions)                                return COLOR_LIGHTNING;
   if (windy && !highWinds)                                return fadeColorForCat(flightCategory);
-  if (highWinds && SHOW_HIGH_WINDS_WARNING && !windCycle) return COLOR_HIGH_WINDS;
+  if ((windy && highWinds && SHOW_HIGH_WINDS_WARNING) 
+      || (highWinds && !SHOW_WIND_ANIMATION && SHOW_HIGH_WINDS_WARNING)) return COLOR_HIGH_WINDS; // Show steady yellow if not animated but high wind warning enabled
   return baseColorForCat(flightCategory);
 }
 

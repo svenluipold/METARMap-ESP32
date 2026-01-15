@@ -1,4 +1,4 @@
-#pragma one
+#pragma once
 
 #include <Arduino.h>
 #include <time.h>
@@ -7,7 +7,8 @@
 #include "settings.h"
 
 
-bool isNightMode(const tm& t);
+bool isSleepTime(const tm& t);
 uint32_t secondsUntilNext0800(const tm& now);
-bool syncTimeOrFail();
+bool getTimeOrFail();
 void checkforEnteringNightSleep(const std::function<void(void)>& beforeSleep);
+static bool isTimeSet();
